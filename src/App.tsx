@@ -14,65 +14,53 @@ import "reactflow/dist/style.css";
 
 import { v4 as uuidv4 } from "uuid";
 
+const initialNodePosition = { x: 100, y: 100 };
+
+const nodeOptions = {
+  group: {
+    style: {
+      backgroundColor: "rgba(255, 0, 0, 0.2)",
+      width: 200,
+      height: 200,
+      zIndex: 1,
+    },
+  },
+  panel: {
+    style: {
+      backgroundColor: "rgba(255, 0, 0, 0.2)",
+      width: 300,
+      height: 300,
+      zIndex: 0,
+    },
+  },
+  node: {
+    style: {
+      zIndex: 2,
+    },
+  },
+};
+
 function App() {
   const [label, setLabel] = useState<string>("");
+
   const [parentId, setParentId] = useState<string>();
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  const nodesTypes = (label: string) => {
-    return {
-      group: {
-        id: uuidv4(),
-        data: { label },
-        position: { x: 100, y: 100 },
-        className: "light",
-        style: {
-          backgroundColor: "rgba(255, 0, 0, 0.2)",
-          width: 200,
-          height: 200,
-          zIndex: 1,
-        },
-        type: "group",
-      },
-      panel: {
-        id: uuidv4(),
-        data: { label },
-        position: { x: 100, y: 100 },
-        className: "light",
-        style: {
-          backgroundColor: "rgba(255, 0, 0, 0.2)",
-          width: 300,
-          height: 300,
-          zIndex: 0,
-        },
-        type: "default",
-      },
-      nodeInput: {
-        id: uuidv4(),
-        type: "input",
-        data: { label },
-        style: {
-          zIndex: 2,
-        },
-        className: "light",
-        extent: parentId ? ("parent" as const) : undefined,
-        position: { x: 100, y: 100 },
-        parentId,
-      },
-      node: {
-        id: uuidv4(),
-        data: { label },
-        style: {
-          zIndex: 2,
-        },
-        className: "light",
-        extent: parentId ? ("parent" as const) : undefined,
-        position: { x: 100, y: 100 },
-        parentId,
-      },
+  const createNode = (type: string, password?: string, option = {}) => {
+    const newNode = {
+      id: uuidv4(),
+      data: { label, password },
+      position: initialNodePosition,
+      className: "light",
+      extent: parentId ? ("parent" as const) : undefined,
+      parentId,
+      type,
+      ...option,
     };
+
+    setNodes((cur) => [...cur, newNode]);
   };
 
   const onConnect = useCallback(
@@ -84,9 +72,8 @@ function App() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ParentOptions = (node: any) => {
-
-    if (!['group', 'default'].includes(node.type)) {
-      return
+    if (!["group", "default"].includes(node.type)) {
+      return;
     }
 
     return (
@@ -94,6 +81,35 @@ function App() {
         {node.data.label}
       </option>
     );
+  };
+
+  const passwordRequest = () => {
+    const password = prompt("Please password:");
+
+    if (password == null || password == "") {
+      alert("Error: password not provided.");
+      return null;
+    }
+
+    return password;
+  };
+
+  const hasPermissionToCreateNode = () => {
+    let password;
+
+    if (parentId) {
+      const requestedPass = passwordRequest();
+
+      password = nodes.find((node) => node.id === parentId)?.data
+        .password as string;
+
+      if (password !== requestedPass) {
+        alert("Wrong password");
+        return false;
+      }
+    }
+
+    return true;
   };
 
   return (
@@ -124,27 +140,34 @@ function App() {
           />
 
           <button
-            onClick={() => setNodes((cur) => [nodesTypes(label).node, ...cur])}
+            onClick={() =>
+              hasPermissionToCreateNode() &&
+              createNode("", undefined, nodeOptions.node)
+            }
           >
             Node
           </button>
 
           <button
-            onClick={() =>
-              setNodes((cur) => [nodesTypes(label).nodeInput, ...cur])
-            }
+            onClick={() => hasPermissionToCreateNode() && createNode("input")}
           >
             nodeInput
           </button>
 
           <button
-            onClick={() => setNodes((cur) => [nodesTypes(label).panel, ...cur])}
+            onClick={() => {
+              const password = passwordRequest();
+              password && createNode("default", password, nodeOptions.panel);
+            }}
           >
             Panel
           </button>
 
           <button
-            onClick={() => setNodes((cur) => [nodesTypes(label).group, ...cur])}
+            onClick={() => {
+              const password = passwordRequest();
+              password && createNode("group", password, nodeOptions.group);
+            }}
           >
             Group
           </button>
